@@ -1382,7 +1382,11 @@ function RouteDetail() {
     dash = (v: string) => (incomplete ? "—" : v),
     status = useStatus(route),
     flagged = status === "checking" && route.status !== "checking",
-    promoted = useApp((s) => s.promotedIds.includes(id));
+    promoted = useApp((s) => s.promotedIds.includes(id)),
+    // photos whose image file exists (a route can list them before the files are added)
+    contextShots = (route.contextPhotos || [])
+      .map((p) => ({ ...p, src: p.url || getImage(`context/${p.key}`) }))
+      .filter((p): p is typeof p & { src: string } => !!p.src);
   return (
     <>
       <Header
@@ -1475,25 +1479,22 @@ function RouteDetail() {
               ))}
             </div>
           </Section>
-          {!!route.contextPhotos?.length && (
+          {contextShots.length > 0 && (
             <Section title="Photos along the way">
               <div className="context-gallery">
-                {route.contextPhotos.map((p, i) => {
-                  const src = p.url || getImage(`context/${p.key}`);
-                  return src ? (
-                    <figure key={i}>
-                      <img
-                        src={src}
-                        alt={p.caption || PHOTO_KINDS[p.kind]}
-                        loading="lazy"
-                      />
-                      <figcaption>
-                        <span className="photo-kind">{PHOTO_KINDS[p.kind]}</span>
-                        {p.caption}
-                      </figcaption>
-                    </figure>
-                  ) : null;
-                })}
+                {contextShots.map((p, i) => (
+                  <figure key={i}>
+                    <img
+                      src={p.src}
+                      alt={p.caption || PHOTO_KINDS[p.kind]}
+                      loading="lazy"
+                    />
+                    <figcaption>
+                      <span className="photo-kind">{PHOTO_KINDS[p.kind]}</span>
+                      {p.caption}
+                    </figcaption>
+                  </figure>
+                ))}
               </div>
             </Section>
           )}
