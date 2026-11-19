@@ -19,6 +19,8 @@ import type { RouteInput } from "./lib/buildRoute";
 //   timeOfDay: ["morning", "midday", "evening"], // + "night"
 //   tips: ["Avoid rush hour (6–9 AM, 4–7 PM)", "Keep your Beep card ready"],
 //   description: "Direct LRT-2 ride with no transfers.", // optional
+//   // optional helpful photos: add src/assets/images/context/r9-1.jpg, then
+//   photos: [{ key: "r9-1", kind: "board", caption: "Board at the green stop" }],
 // },
 export const collectedRoutes: RouteInput[] = [
   {

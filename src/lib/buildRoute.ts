@@ -1,4 +1,4 @@
-import type { Mode, Route } from "../data";
+import type { Mode, PhotoKind, Route } from "../data";
 
 export const TAGS = [
   "Fast",
@@ -30,6 +30,8 @@ export type RouteInput = {
   tips: string[];
   transfers?: number; // only for incomplete routes with no steps yet
   description?: string;
+  // photos[].key is a file name in src/assets/images/context/, e.g. "r12-1"
+  photos?: { key: string; caption: string; kind?: PhotoKind }[];
   dateChecked?: string;
   source?: string;
   status?: Route["status"];
@@ -68,6 +70,11 @@ export function buildRoute(i: RouteInput): Route {
     tags: i.tags,
     tips: i.tips,
     description: i.description,
+    contextPhotos: i.photos?.map((p) => ({
+      key: p.key,
+      caption: p.caption,
+      kind: p.kind ?? "landmark",
+    })),
     dateChecked: i.dateChecked,
     source: i.source,
     rating: 0,

@@ -10,6 +10,8 @@ type Answer = {
   timeAgo: string;
   upvotes: number;
   image?: string;
+  imageCaption?: string;
+  mapUrl?: string;
   replies: { id: string; text: string; authorId: string }[];
 };
 // Reports needed before a guide or answer is flagged for moderation.
@@ -49,7 +51,11 @@ type State = {
   promote: (id: string) => void;
   updateProfile: (p: { name: string; email: string }) => void;
   postQuestion: (q: Question) => void;
-  postAnswer: (qid: string, text: string, image?: string) => void;
+  postAnswer: (
+    qid: string,
+    text: string,
+    extra?: { image?: string; imageCaption?: string; mapUrl?: string },
+  ) => void;
   accept: (qid: string, aid: string) => void;
   setWizard: (v: any) => void;
 };
@@ -325,7 +331,7 @@ export const useApp = create<State>()(
         set((s) => ({ questions: [q, ...s.questions], points: s.points + 5 }));
         get().addToast("Your question has been posted!");
       },
-      postAnswer: (qid, text, image) => {
+      postAnswer: (qid, text, extra) => {
         const id = "a" + Date.now();
         set((s) => ({
           answers: {
@@ -335,7 +341,7 @@ export const useApp = create<State>()(
               questionId: qid,
               authorId: "u-alex",
               text,
-              image,
+              ...extra,
               timeAgo: "Just now",
               upvotes: 0,
               replies: [],

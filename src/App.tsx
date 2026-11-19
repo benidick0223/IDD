@@ -48,7 +48,14 @@ import {
   Menu,
 } from "lucide-react";
 import homeTransitImage from "./assets/images/illustrations/home-transit.png";
-import { users, type Route, type Question } from "./data";
+import {
+  users,
+  PHOTO_KINDS,
+  type ContextPhoto,
+  type PhotoKind,
+  type Route,
+  type Question,
+} from "./data";
 import { useApp, REPORT_LIMIT } from "./store";
 import { LogoMark } from "./Logo";
 import { getImage } from "./lib/images";
@@ -176,6 +183,157 @@ function PhotoInput({
             <X size={14} />
           </button>
         </div>
+      )}
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+// Only plain web links are accepted, so a pasted "javascript:" link can't be used.
+function safeUrl(value?: string) {
+  const v = (value || "").trim();
+  if (!v) return "";
+  try {
+    const u = new URL(/^https?:\/\//i.test(v) ? v : "https://" + v);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.href : "";
+  } catch {
+    return "";
+  }
+}
+// Photo + a caption explaining it + an optional map link, used when sharing a
+// route or answering a question.
+function ContextFields({
+  photo,
+  caption,
+  mapUrl,
+  onPhoto,
+  onCaption,
+  onMapUrl,
+  photoLabel,
+}: {
+  photo: string;
+  caption: string;
+  mapUrl: string;
+  onPhoto: (v: string) => void;
+  onCaption: (v: string) => void;
+  onMapUrl: (v: string) => void;
+  photoLabel?: string;
+}) {
+  return (
+    <div className="context-fields">
+      <PhotoInput value={photo} onChange={onPhoto} label={photoLabel} />
+      {photo && (
+        <>
+          <label>
+            What does this photo show?{" "}
+            <span className="muted">{caption.length}/120</span>
+          </label>
+          <input
+            maxLength={120}
+            value={caption}
+            onChange={(e) => onCaption(e.target.value)}
+            placeholder="e.g. Jeepney stop in front of Chowking, board here"
+          />
+        </>
+      )}
+      <MapLinkField value={mapUrl} onChange={onMapUrl} />
+    </div>
+  );
+}
+function MapLinkField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const bad = !!value.trim() && !safeUrl(value);
+  return (
+    <>
+      <label>Map link (optional)</label>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Paste a Google Maps link to the stop or route"
+      />
+      {bad && (
+        <p className="form-error" role="alert">
+          That doesn't look like a web link. Paste a link such as
+          https://maps.app.goo.gl/...
+        </p>
+      )}
+    </>
+  );
+}
+const MAX_CONTEXT_PHOTOS = 4;
+// Lets someone attach photos that explain a route: the stop, a landmark, where to
+// board or get off. Each photo has a label and a short caption.
+function ContextPhotosEditor({
+  value,
+  onChange,
+}: {
+  value: ContextPhoto[];
+  onChange: (v: ContextPhoto[]) => void;
+}) {
+  const [error, setError] = useState("");
+  const patch = (i: number, p: Partial<ContextPhoto>) =>
+    onChange(value.map((x, j) => (j === i ? { ...x, ...p } : x)));
+  return (
+    <div className="ctx-photos">
+      {value.map((p, i) => (
+        <div className="ctx-photo-row" key={i}>
+          <img src={p.url} alt="" />
+          <div className="ctx-photo-fields">
+            <select
+              value={p.kind}
+              onChange={(e) => patch(i, { kind: e.target.value as PhotoKind })}
+            >
+              {Object.entries(PHOTO_KINDS).map(([k, label]) => (
+                <option key={k} value={k}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <input
+              maxLength={120}
+              value={p.caption}
+              onChange={(e) => patch(i, { caption: e.target.value })}
+              placeholder="What should people look for? e.g. Green gate beside the bakery"
+            />
+          </div>
+          <button
+            type="button"
+            className="ctx-photo-remove"
+            aria-label="Remove photo"
+            onClick={() => onChange(value.filter((_, j) => j !== i))}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ))}
+      {value.length < MAX_CONTEXT_PHOTOS && (
+        <label className="upload">
+          <Camera size={17} /> Add a helpful photo
+          <input
+            type="file"
+            accept="image/*"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (!file) return;
+              try {
+                const url = await readPhoto(file);
+                onChange([...value, { url, caption: "", kind: "landmark" }]);
+                setError("");
+              } catch {
+                setError("Could not read that image. Try another photo.");
+              }
+            }}
+          />
+        </label>
       )}
       {error && (
         <p className="form-error" role="alert">
@@ -1286,10 +1444,10 @@ function RouteDetail() {
             </div>
           )}
           <Section title="Route overview">
-            {route.mapUrl && (
+            {safeUrl(route.mapUrl) && (
               <a
                 className="text-link"
-                href={route.mapUrl}
+                href={safeUrl(route.mapUrl)}
                 target="_blank"
                 rel="noreferrer"
               >
@@ -1317,6 +1475,28 @@ function RouteDetail() {
               ))}
             </div>
           </Section>
+          {!!route.contextPhotos?.length && (
+            <Section title="Photos along the way">
+              <div className="context-gallery">
+                {route.contextPhotos.map((p, i) => {
+                  const src = p.url || getImage(`context/${p.key}`);
+                  return src ? (
+                    <figure key={i}>
+                      <img
+                        src={src}
+                        alt={p.caption || PHOTO_KINDS[p.kind]}
+                        loading="lazy"
+                      />
+                      <figcaption>
+                        <span className="photo-kind">{PHOTO_KINDS[p.kind]}</span>
+                        {p.caption}
+                      </figcaption>
+                    </figure>
+                  ) : null;
+                })}
+              </div>
+            </Section>
+          )}
           {!incomplete && (
           <div className="card info-card">
             <h3>Weather exposure</h3>
@@ -1719,6 +1899,8 @@ function Thread() {
     [reply, setReply] = useState(""),
     [answer, setAnswer] = useState(false),
     [answerPhoto, setAnswerPhoto] = useState(""),
+    [answerCaption, setAnswerCaption] = useState(""),
+    [answerMap, setAnswerMap] = useState(""),
     [text, setText] = useState("");
   if (!q)
     return (
@@ -1817,6 +1999,19 @@ function Thread() {
                 {a.image && (
                   <img className="photo-preview" src={a.image} alt="Answer" />
                 )}
+                {a.image && a.imageCaption && (
+                  <p className="photo-caption">{a.imageCaption}</p>
+                )}
+                {safeUrl(a.mapUrl) && (
+                  <a
+                    className="text-link"
+                    href={safeUrl(a.mapUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    View on map →
+                  </a>
+                )}
                 <div className="answer-controls">
                   <button onClick={() => store.upvote(a.id)}>
                     ▲ {a.upvotes}
@@ -1904,17 +2099,27 @@ function Thread() {
             onChange={(e) => setText(e.target.value)}
             placeholder="Share helpful details..."
           />
-          <PhotoInput
-            value={answerPhoto}
-            onChange={setAnswerPhoto}
-            label="Add photo of the stop or route"
+          <ContextFields
+            photo={answerPhoto}
+            caption={answerCaption}
+            mapUrl={answerMap}
+            onPhoto={setAnswerPhoto}
+            onCaption={setAnswerCaption}
+            onMapUrl={setAnswerMap}
+            photoLabel="Add photo of the stop or route"
           />
           <Button
-            disabled={!text.trim()}
+            disabled={!text.trim() || (!!answerMap.trim() && !safeUrl(answerMap))}
             onClick={() => {
-              store.postAnswer(q.id, text, answerPhoto || undefined);
+              store.postAnswer(q.id, text, {
+                image: answerPhoto || undefined,
+                imageCaption: (answerPhoto && answerCaption.trim()) || undefined,
+                mapUrl: safeUrl(answerMap) || undefined,
+              });
               setText("");
               setAnswerPhoto("");
+              setAnswerCaption("");
+              setAnswerMap("");
               setAnswer(false);
             }}
           >
@@ -2138,7 +2343,7 @@ function Wizard() {
       : idx === 1
         ? Number(d.fare) >= 0 && Number(d.totalMinutes) > 0
         : idx === 2
-          ? !!d.modes?.length
+          ? !!d.modes?.length && (!d.mapUrl?.trim() || !!safeUrl(d.mapUrl))
           : true;
   const submit = () => {
     const route: Route = {
@@ -2165,7 +2370,8 @@ function Wizard() {
       tips: d.tips ? [d.tips] : [],
       description: d.description || undefined,
       imageUrl: d.photo || undefined,
-      mapUrl: d.mapUrl || undefined,
+      contextPhotos: d.photos?.length ? d.photos : undefined,
+      mapUrl: safeUrl(d.mapUrl) || undefined,
       rating: 0,
       ratingCount: 0,
       status: "pending",
@@ -2337,18 +2543,24 @@ function Wizard() {
                 value={d.description || ""}
                 onChange={(e) => update("description", e.target.value)}
               />
-              <label>Photo of the route or stop (optional)</label>
+              <label>Helpful photos (optional)</label>
+              <p className="muted">
+                Show people what to look for: the stop, a landmark, where to
+                board or get off.
+              </p>
+              <ContextPhotosEditor
+                value={d.photos || []}
+                onChange={(v) => update("photos", v)}
+              />
+              <label>Cover photo for the guide card (optional)</label>
               <PhotoInput
                 value={d.photo || ""}
                 onChange={(v) => update("photo", v)}
-                label="Add a route photo"
+                label="Add a cover photo"
               />
-              <label>Map link (optional)</label>
-              <input
-                type="url"
+              <MapLinkField
                 value={d.mapUrl || ""}
-                onChange={(e) => update("mapUrl", e.target.value)}
-                placeholder="Paste a Google Maps link to the stop or route"
+                onChange={(v) => update("mapUrl", v)}
               />
             </>
           )}
@@ -2367,7 +2579,13 @@ function Wizard() {
               {d.photo && (
                 <img className="photo-preview" src={d.photo} alt="Route" />
               )}
-              {d.mapUrl && <p>Map: {d.mapUrl}</p>}
+              {!!d.photos?.length && (
+                <p>
+                  {d.photos.length} helpful photo
+                  {d.photos.length === 1 ? "" : "s"} added
+                </p>
+              )}
+              {safeUrl(d.mapUrl) && <p>Map link added</p>}
             </div>
           )}
           <div className="wizard-controls">

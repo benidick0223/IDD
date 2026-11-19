@@ -3460,3 +3460,124 @@ body:has(.login-layout) .page {
   margin: 22px auto 6px;
   min-width: 240px;
 }
+
+/* ---------- Photo and map context ---------- */
+.context-fields {
+  display: grid;
+  gap: 10px;
+}
+.photo-caption {
+  margin: 8px 2px 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.route-image.large + .photo-caption {
+  margin-top: -14px;
+}
+.dialog .context-fields input:not([type="file"]) {
+  height: 50px;
+  padding: 0 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  font-size: 15px;
+}
+.dialog .context-fields input:focus {
+  outline: 0;
+  border-color: var(--green);
+  box-shadow: 0 0 0 4px rgba(20, 81, 58, 0.1);
+}
+.context-fields label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+/* ---------- Helpful photos beside route info ---------- */
+.ctx-photos {
+  display: grid;
+  gap: 12px;
+}
+.ctx-photo-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+}
+.ctx-photo-row img {
+  width: 96px;
+  height: 96px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+.ctx-photo-fields {
+  display: grid;
+  gap: 8px;
+  padding-right: 28px;
+}
+.ctx-photo-fields select,
+.ctx-photo-fields input {
+  height: 44px;
+  padding: 0 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  font-size: 14px;
+}
+.ctx-photo-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #f4f1e8;
+  color: var(--ink-2);
+}
+.context-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+.context-gallery figure {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+}
+.context-gallery img {
+  display: block;
+  width: 100%;
+  height: 190px;
+  object-fit: cover;
+}
+.context-gallery figcaption {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px 14px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.photo-kind {
+  justify-self: start;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 700;
+}
+@media (max-width: 640px) {
+  .context-gallery {
+    grid-template-columns: 1fr;
+  }
+}

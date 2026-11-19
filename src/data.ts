@@ -2,6 +2,22 @@ import { buildRoutes } from "./lib/buildRoute";
 import { collectedRoutes } from "./collected-routes";
 export type Mode =
   "jeepney" | "bus" | "mrt" | "lrt" | "uv" | "taxi" | "tricycle" | "train" | "walk";
+// Helpful photos shown beside a route's information (not the cover picture).
+export type PhotoKind = "start" | "board" | "transfer" | "dropoff" | "landmark";
+export const PHOTO_KINDS: Record<PhotoKind, string> = {
+  start: "Where to start",
+  board: "Where to board",
+  transfer: "Transfer point",
+  dropoff: "Where to get off",
+  landmark: "Landmark to look for",
+};
+// url = an uploaded photo; key = a file in src/assets/images/context/ (e.g. "r12-1")
+export type ContextPhoto = {
+  url?: string;
+  key?: string;
+  caption: string;
+  kind: PhotoKind;
+};
 export type Route = {
   id: string;
   title: string;
@@ -21,6 +37,7 @@ export type Route = {
   dateChecked?: string;
   source?: string;
   mapUrl?: string;
+  contextPhotos?: ContextPhoto[];
   imageKey?: string;
   imageUrl?: string;
   rating: number;
