@@ -880,6 +880,7 @@ function Guides() {
     nav = useNavigate(),
     [show, setShow] = useState(false),
     [chip, setChip] = useState("All"),
+    [showAll, setShowAll] = useState(false),
     promoted = useApp((s) => s.promotedIds);
   let list = [...useApp.getState().routes];
   if (f.modes.length)
@@ -908,6 +909,11 @@ function Guides() {
   list.sort(
     (a, b) => Number(a.status === "incomplete") - Number(b.status === "incomplete"),
   );
+  // With no filters applied, start with the guides that have a photo.
+  const browsing =
+    !f.modes.length && f.time === "Any" && f.sort === "Recommended" && chip === "All";
+  const hasPhoto = (r: Route) => !!(r.imageUrl || getImage(`routes/${r.id}`));
+  const visible = browsing && !showAll ? list.filter(hasPhoto) : list;
   return (
     <>
       <Header
@@ -962,14 +968,36 @@ function Guides() {
         </aside>
         <div className="guide-results">
           <div className="results-heading">
-            <b>{list.length} route guides</b>
+            <b>
+              {visible.length < list.length
+                ? `Showing ${visible.length} of ${list.length} route guides`
+                : `${list.length} route guides`}
+            </b>
           </div>
-          {list.length ? (
-            <div className="guide-grid">
-              {list.map((r) => (
-                <RouteCard key={r.id} route={r} full />
-              ))}
-            </div>
+          {visible.length ? (
+            <>
+              <div className="guide-grid">
+                {visible.map((r) => (
+                  <RouteCard key={r.id} route={r} full />
+                ))}
+              </div>
+              {browsing && list.length > visible.length && (
+                <button
+                  className="btn outline see-all"
+                  onClick={() => setShowAll(true)}
+                >
+                  See all {list.length} route guides
+                </button>
+              )}
+              {browsing && showAll && (
+                <button
+                  className="btn outline see-all"
+                  onClick={() => setShowAll(false)}
+                >
+                  Show only guides with photos
+                </button>
+              )}
+            </>
           ) : (
             <Empty
               title="No routes match these filters"
@@ -1567,11 +1595,13 @@ function AskRoute() {
     </>
   );
 }
+const QUESTIONS_PER_PAGE = 10;
 function Community() {
   const store = useApp(),
     [kind, setKind] = useState("All"),
     [tag, setTag] = useState(""),
-    [query, setQuery] = useState("");
+    [query, setQuery] = useState(""),
+    [showAll, setShowAll] = useState(false);
   const list = store.questions.filter(
     (q) =>
       (kind === "All" ||
@@ -1584,6 +1614,8 @@ function Community() {
         .includes(query.toLowerCase()),
   );
   const nav = useNavigate();
+  useEffect(() => setShowAll(false), [kind, tag, query]);
+  const visible = showAll ? list : list.slice(0, QUESTIONS_PER_PAGE);
   return (
     <>
       <Header
@@ -1629,7 +1661,7 @@ function Community() {
           </div>
           <div className="community-list">
             {list.length ? (
-              list.map((q) => <QuestionCard key={q.id} q={q} />)
+              visible.map((q) => <QuestionCard key={q.id} q={q} />)
             ) : (
               <Empty
                 title="No questions found"
@@ -1639,6 +1671,16 @@ function Community() {
               />
             )}
           </div>
+          {list.length > QUESTIONS_PER_PAGE && (
+            <button
+              className="btn outline see-all"
+              onClick={() => setShowAll(!showAll)}
+            >
+              {showAll
+                ? "Show fewer questions"
+                : `See all ${list.length} questions`}
+            </button>
+          )}
         </div>
         <aside className="community-sidebar card">
           <h2>Have a commute question?</h2>
@@ -1723,7 +1765,7 @@ function Thread() {
                 ▲ {q.upvotes} Helpful
               </button>
               <span>
-                <MessageCircle size={16} /> {q.answerIds.length} answers
+                <MessageCircle size={16} /> {q.answerIds.length}{" "}{q.answerIds.length === 1 ? "answer" : "answers"}
               </span>
               <Button onClick={() => store.requireLogin(() => setAnswer(true))}>
                 Answer

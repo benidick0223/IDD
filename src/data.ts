@@ -359,6 +359,19 @@ export const users = [
   { id: "u-liza", name: "Liza Santos", handle: "@lizas", verified: false },
   { id: "u-renz", name: "Renz Aquino", handle: "@renzaquino", verified: true },
   { id: "u-idd", name: "IDD Team", handle: "@idd", verified: false },
+  { id: "u-ana", name: "Ana Villanueva", handle: "@anavillanueva", verified: false },
+  { id: "u-paolo", name: "Paolo Mercado", handle: "@paolom", verified: false },
+  { id: "u-bea", name: "Bea Navarro", handle: "@beanavarro", verified: false },
+  { id: "u-migs", name: "Migs Torres", handle: "@migstorres", verified: false },
+  { id: "u-kim", name: "Kim Dizon", handle: "@kimdizon", verified: false },
+  { id: "u-tonyo", name: "Mang Tonyo", handle: "@mangtonyo", verified: true },
+  { id: "u-grace", name: "Grace Ocampo", handle: "@graceocampo", verified: false },
+  { id: "u-dennis", name: "Dennis Salonga", handle: "@dennissalonga", verified: false },
+  { id: "u-nica", name: "Nica Ramos", handle: "@nicaramos", verified: false },
+  { id: "u-lyn", name: "Lyn Castro", handle: "@lyncastro", verified: false },
+  { id: "u-ced", name: "Cedric Lim", handle: "@cedriclim", verified: false },
+  { id: "u-joy", name: "Joy Fernandez", handle: "@joyfernandez", verified: true },
+  { id: "u-ramon", name: "Ramon Pascual", handle: "@ramonpascual", verified: false },
 ];
 export type Question = {
   id: string;

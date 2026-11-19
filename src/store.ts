@@ -1,11 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import {
-  routes as seed,
-  initialQuestions,
-  type Question,
-  type Route,
-} from "./data";
+import { routes as seed, type Question, type Route } from "./data";
+import { seedQuestions, seedAnswers } from "./community-seed";
 type Answer = {
   id: string;
   questionId: string;
@@ -171,8 +167,8 @@ const start = () => ({
   compareIds: ["r1", "r2"],
   upvoted: [],
   routes: seed,
-  questions: initialQuestions,
-  answers: defaultAnswers,
+  questions: seedQuestions,
+  answers: { ...defaultAnswers, ...seedAnswers },
   wizard: {},
   toast: "",
   loginOpen: false,
@@ -377,9 +373,19 @@ export const useApp = create<State>()(
         const saved: Route[] = persisted?.routes ?? [];
         const savedById = new Map(saved.map((r) => [r.id, r]));
         const seedIds = new Set(seed.map((r) => r.id));
+        // Seed questions come from code (so new ones reach returning visitors);
+        // a visitor's own questions and any changes to seed ones are kept.
+        const savedQs: Question[] = persisted?.questions ?? [];
+        const savedQById = new Map(savedQs.map((q) => [q.id, q]));
+        const seedQIds = new Set(seedQuestions.map((q) => q.id));
         return {
           ...current,
           ...persisted,
+          questions: [
+            ...savedQs.filter((q) => !seedQIds.has(q.id)),
+            ...seedQuestions.map((q) => savedQById.get(q.id) ?? q),
+          ],
+          answers: { ...current.answers, ...(persisted?.answers ?? {}) },
           routes: [
             ...saved.filter((r) => !seedIds.has(r.id)),
             ...seed.map((r) => ({

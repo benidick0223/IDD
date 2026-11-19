@@ -3453,3 +3453,10 @@ body:has(.login-layout) .page {
   color: var(--muted);
   font-size: 13px;
 }
+
+/* ---------- See all ---------- */
+.btn.see-all {
+  display: flex;
+  margin: 22px auto 6px;
+  min-width: 240px;
+}
