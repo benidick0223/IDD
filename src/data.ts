@@ -428,7 +428,11 @@ export type Question = {
   image?: string;
   answerIds: string[];
   acceptedAnswerId?: string;
+  acceptedAnswerIds?: string[];
 };
+// A question can have several accepted answers.
+export const acceptedIds = (q: Question) =>
+  q.acceptedAnswerIds ?? (q.acceptedAnswerId ? [q.acceptedAnswerId] : []);
 export const initialQuestions: Question[] = [
   {
     id: "q1",

@@ -51,6 +51,7 @@ import homeTransitImage from "./assets/images/illustrations/home-transit.png";
 import {
   users,
   PHOTO_KINDS,
+  acceptedIds,
   type ContextPhoto,
   type PhotoKind,
   type Route,
@@ -62,7 +63,8 @@ import { getImage } from "./lib/images";
 import { readPhoto } from "./lib/photo";
 const cx = (...a: (string | false | undefined)[]) =>
   a.filter(Boolean).join(" ");
-const money = (n: number) => `₱${n}`;
+const money = (n: number) =>
+  `₱${Number.isFinite(n) ? n.toLocaleString("en-US") : n}`;
 const person = (id: string) => {
   const u = users.find((x) => x.id === id) || users[0];
   return id === "u-alex" ? { ...u, name: useApp.getState().profile.name } : u;
@@ -378,7 +380,13 @@ function parseQuery(q: string) {
   if (m) return { from: m[1].trim(), to: "", text: "" };
   return { from: "", to: "", text };
 }
-function SearchBox({ initial = "" }: { initial?: string }) {
+function SearchBox({
+  initial = "",
+  placeholder = "Where do you need to go?",
+}: {
+  initial?: string;
+  placeholder?: string;
+}) {
   const [query, set] = useState(initial);
   const nav = useNavigate();
   return (
@@ -397,7 +405,7 @@ function SearchBox({ initial = "" }: { initial?: string }) {
       <input
         value={query}
         onChange={(e) => set(e.target.value)}
-        placeholder="Where do you need to go?"
+        placeholder={placeholder}
       />
       <button aria-label="Search">
         <ArrowRight size={18} />
@@ -467,7 +475,9 @@ function RouteCard({ route, full = false }: { route: Route; full?: boolean }) {
         <div className="route-copy">
           <div className="route-title">{route.title}</div>
           <div className="muted">
-            {route.origin} <ArrowRight size={13} /> {route.destination}
+            <span className="rc-place">{route.origin}</span>
+            <ArrowRight size={13} />
+            <span className="rc-place">{route.destination}</span>
           </div>
           <div className="mode-row">
             {route.modes.map((m) => (
@@ -511,7 +521,7 @@ function RouteCard({ route, full = false }: { route: Route; full?: boolean }) {
 }
 function QuestionCard({ q }: { q: Question }) {
   const store = useApp();
-  const aCount = q.answerIds.length;
+  const aCount = q.answerIds.filter((id) => store.answers[id]).length;
   return (
     <article className="card q-card">
       <Link to={"/question/" + q.id} className="q-main">
@@ -530,7 +540,7 @@ function QuestionCard({ q }: { q: Question }) {
         <div className="q-meta">
           <span>
             <MessageCircle size={15} />
-            {aCount} answers
+            {aCount} {aCount === 1 ? "answer" : "answers"}
           </span>
           <span>{q.timeAgo}</span>
         </div>
@@ -733,7 +743,7 @@ function Shell() {
           <NavLink to="/profile">Profile</NavLink>
         </nav>
         <div className="nav-search">
-          <SearchBox />
+          <SearchBox placeholder="Search routes" />
         </div>
         <Button
           onClick={() =>
@@ -964,6 +974,49 @@ function Section({
     </section>
   );
 }
+const MODE_GROUPS: Record<string, string[]> = {
+  mrt: ["mrt", "lrt", "train"],
+  bus: ["bus"],
+  jeepney: ["jeepney"],
+  uv: ["uv"],
+};
+function applyFilters(
+  routes: Route[],
+  f: { sort: string; time: string; modes: string[] },
+  promoted: string[] = [],
+) {
+  let out = [...routes];
+  if (f.modes.length)
+    out = out.filter((r) =>
+      f.modes.some((m) =>
+        (MODE_GROUPS[m] ?? [m]).some((x) => r.modes.includes(x as any)),
+      ),
+    );
+  if (f.time !== "Any")
+    out = out.filter((r) => r.timeOfDay?.includes(f.time.toLowerCase()));
+  const weather = { sheltered: 0, partial: 1, exposed: 2 };
+  if (f.sort === "Cheapest") out.sort((a, b) => a.fare - b.fare);
+  if (f.sort === "Fastest") out.sort((a, b) => a.totalMinutes - b.totalMinutes);
+  if (f.sort === "Least Walking")
+    out.sort((a, b) => a.walkingMinutes - b.walkingMinutes);
+  if (f.sort === "Fewest Transfers") out.sort((a, b) => a.transfers - b.transfers);
+  if (f.sort === "Weather-Friendly")
+    out.sort((a, b) => weather[a.exposure] - weather[b.exposure]);
+  if (f.sort === "Recommended")
+    out.sort(
+      (a, b) => Number(promoted.includes(b.id)) - Number(promoted.includes(a.id)),
+    );
+  // guides still missing their details always go last
+  return out.sort(
+    (a, b) => Number(a.status === "incomplete") - Number(b.status === "incomplete"),
+  );
+}
+const SORT_CHIPS: [string, string][] = [
+  ["All", "Recommended"],
+  ["Cheapest", "Cheapest"],
+  ["Fastest", "Fastest"],
+  ["Least Walk", "Least Walking"],
+];
 function FilterPanel({ mobile = false }: { mobile?: boolean }) {
   const state = useApp((s) => s.filter),
     set = useApp.setState;
@@ -1037,40 +1090,19 @@ function Guides() {
     set = useApp.setState,
     nav = useNavigate(),
     [show, setShow] = useState(false),
-    [chip, setChip] = useState("All"),
     [showAll, setShowAll] = useState(false),
-    promoted = useApp((s) => s.promotedIds);
-  let list = [...useApp.getState().routes];
-  if (f.modes.length)
-    list = list.filter((r) => f.modes.some((m) => r.modes.includes(m as any)));
-  if (f.time !== "Any")
-    list = list.filter((r) => r.timeOfDay?.includes(f.time.toLowerCase()));
-  if (chip === "Cheapest" || f.sort === "Cheapest")
-    list.sort((a, b) => a.fare - b.fare);
-  if (chip === "Fastest" || f.sort === "Fastest")
-    list.sort((a, b) => a.totalMinutes - b.totalMinutes);
-  if (chip === "Least Walk" || f.sort === "Least Walking")
-    list.sort((a, b) => a.walkingMinutes - b.walkingMinutes);
-  if (f.sort === "Fewest Transfers")
-    list.sort((a, b) => a.transfers - b.transfers);
-  if (f.sort === "Weather-Friendly")
-    list.sort(
-      (a, b) =>
-        ({ sheltered: 0, partial: 1, exposed: 2 })[a.exposure] -
-        { sheltered: 0, partial: 1, exposed: 2 }[b.exposure],
-    );
-  if (f.sort === "Recommended" && chip === "All")
-    list.sort(
-      (a, b) =>
-        Number(promoted.includes(b.id)) - Number(promoted.includes(a.id)),
-    );
-  list.sort(
-    (a, b) => Number(a.status === "incomplete") - Number(b.status === "incomplete"),
-  );
-  // With no filters applied, start with the guides that have a photo.
+    allRoutes = useApp((s) => s.routes),
+    promoted = useApp((s) => s.promotedIds),
+    list = applyFilters(allRoutes, f, promoted),
+    activeFilters =
+      f.modes.length +
+      (f.time !== "Any" ? 1 : 0) +
+      (SORT_CHIPS.some(([, sort]) => sort === f.sort) ? 0 : 1);
+  // With no filters applied, start with the guides that have a photo, plus your own.
   const browsing =
-    !f.modes.length && f.time === "Any" && f.sort === "Recommended" && chip === "All";
-  const hasPhoto = (r: Route) => !!(r.imageUrl || getImage(`routes/${r.id}`));
+    !f.modes.length && f.time === "Any" && f.sort === "Recommended";
+  const hasPhoto = (r: Route) =>
+    !!(r.imageUrl || getImage(`routes/${r.id}`)) || r.authorId === "u-alex";
   const visible = browsing && !showAll ? list.filter(hasPhoto) : list;
   return (
     <>
@@ -1090,26 +1122,13 @@ function Guides() {
       <div className="guide-toolbar">
         <SearchBox />
         <div className="chips quick-chips">
-          {["All", "Cheapest", "Fastest", "Least Walk"].map((x) => (
+          {SORT_CHIPS.map(([label, sort]) => (
             <button
-              className={chip === x ? "selected" : ""}
-              onClick={() => {
-                setChip(x);
-                set({
-                  filter: {
-                    ...f,
-                    sort:
-                      x === "All"
-                        ? "Recommended"
-                        : x === "Least Walk"
-                          ? "Least Walking"
-                          : x,
-                  },
-                });
-              }}
-              key={x}
+              className={f.sort === sort ? "selected" : ""}
+              onClick={() => set({ filter: { ...f, sort } })}
+              key={label}
             >
-              {x}
+              {label}
             </button>
           ))}
         </div>
@@ -1117,7 +1136,7 @@ function Guides() {
           className="btn outline mobile-filter"
           onClick={() => setShow(true)}
         >
-          <SlidersHorizontal /> Filter
+          <SlidersHorizontal /> Filter{activeFilters ? ` (${activeFilters})` : ""}
         </button>
       </div>
       <div className="guide-layout">
@@ -1234,7 +1253,7 @@ function SearchPage() {
   const { from, to, text } = parseQuery(q),
     has = (value: string, term: string) =>
       value.toLowerCase().includes(term.toLowerCase());
-  const results = store.routes.filter(
+  const matches = store.routes.filter(
     (r) =>
       (!from || has(r.origin, from)) &&
       (!to || has(r.destination, to)) &&
@@ -1244,6 +1263,7 @@ function SearchPage() {
           text,
         )),
   );
+  const results = applyFilters(matches, store.filter, store.promotedIds);
   const terms = [from, to, text].filter(Boolean);
   const qs = store.questions.filter((x) =>
     terms.every((t) => has(x.title + " " + x.body + " " + x.tags.join(" "), t)),
@@ -1383,6 +1403,7 @@ function RouteDetail() {
     status = useStatus(route),
     flagged = status === "checking" && route.status !== "checking",
     promoted = useApp((s) => s.promotedIds.includes(id)),
+    helped = useApp((s) => s.helpfulIds.includes(id)),
     // photos whose image file exists (a route can list them before the files are added)
     contextShots = (route.contextPhotos || [])
       .map((p) => ({ ...p, src: p.url || getImage(`context/${p.key}`) }))
@@ -1429,6 +1450,7 @@ function RouteDetail() {
               </div>
             </div>
           </div>
+          <h2 className="mobile-only summary-title">Route summary</h2>
           <div className="stats-grid">
             {[
               ["Fare", dash(money(route.fare))],
@@ -1441,6 +1463,29 @@ function RouteDetail() {
                 <b>{b}</b>
               </div>
             ))}
+          </div>
+          <div className="route-actions mobile-only">
+            <Button
+              kind={helped ? "outline" : "ghost"}
+              onClick={() => useApp.getState().toggleHelpful(id)}
+            >
+              Helpful 👍 ({route.helpfulCount}){helped ? " ✓" : ""}
+            </Button>
+            <Button kind="outline" onClick={() => compare(id)}>
+              Add to compare
+            </Button>
+            <Button
+              kind="outline"
+              onClick={() => useApp.getState().promote(id)}
+            >
+              {promoted ? "Remove promotion" : "Promote this guide"}
+            </Button>
+            <button
+              className="text-btn report-btn"
+              onClick={() => useApp.getState().report(id)}
+            >
+              Report a problem
+            </button>
           </div>
           {flagged && (
             <div className="card inline-empty flagged-note">
@@ -1581,21 +1626,10 @@ function RouteDetail() {
             Add to compare
           </Button>
           <Button
-            kind="ghost"
-            onClick={() =>
-              open(() => {
-                useApp.setState((s) => ({
-                  routes: s.routes.map((r) =>
-                    r.id === id
-                      ? { ...r, helpfulCount: r.helpfulCount + 1 }
-                      : r,
-                  ),
-                }));
-                useApp.getState().addToast("Thanks for your feedback!");
-              })
-            }
+            kind={helped ? "outline" : "ghost"}
+            onClick={() => useApp.getState().toggleHelpful(id)}
           >
-            Helpful 👍 ({route.helpfulCount})
+            Helpful 👍 ({route.helpfulCount}){helped ? " ✓" : ""}
           </Button>
           <button
             className="text-btn report-btn"
@@ -1783,6 +1817,11 @@ function Community() {
     [tag, setTag] = useState(""),
     [query, setQuery] = useState(""),
     [showAll, setShowAll] = useState(false);
+  const queryTerms = query
+    .toLowerCase()
+    .replace(/#/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
   const list = store.questions.filter(
     (q) =>
       (kind === "All" ||
@@ -1790,9 +1829,11 @@ function Community() {
           ? q.type === "direction"
           : q.type === "route")) &&
       (!tag || q.tags.includes(tag)) &&
-      (q.title + " " + q.body + " " + q.tags.join(" "))
-        .toLowerCase()
-        .includes(query.toLowerCase()),
+      queryTerms.every((t) =>
+        (q.title + " " + q.body + " " + q.tags.join(" "))
+          .toLowerCase()
+          .includes(t),
+      ),
   );
   const nav = useNavigate();
   useEffect(() => setShowAll(false), [kind, tag, query]);
@@ -1912,12 +1953,11 @@ function Thread() {
         onClick={() => nav("/community")}
       />
     );
+  const acc = acceptedIds(q);
   const answers = q.answerIds
     .map((a) => store.answers[a])
     .filter(Boolean)
-    .sort((a, b) =>
-      a.id === q.acceptedAnswerId ? -1 : b.id === q.acceptedAnswerId ? 1 : 0,
-    );
+    .sort((a, b) => Number(acc.includes(b.id)) - Number(acc.includes(a.id)));
   const me = store.isLoggedIn && q.askerId === "u-alex";
   return (
     <>
@@ -1944,12 +1984,23 @@ function Thread() {
               <span>{q.timeAgo}</span>
             </div>
             <div className="thread-actions">
-              <button className="upvote" onClick={() => store.upvote(q.id)}>
+              <button
+                className={cx("upvote", store.upvoted.includes(q.id) && "active")}
+                onClick={() => store.upvote(q.id)}
+              >
                 ▲ {q.upvotes} Helpful
               </button>
-              <span>
-                <MessageCircle size={16} /> {q.answerIds.length}{" "}{q.answerIds.length === 1 ? "answer" : "answers"}
-              </span>
+              <button
+                className="answers-link"
+                onClick={() =>
+                  document
+                    .getElementById("answers")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }
+              >
+                <MessageCircle size={16} /> {answers.length}{" "}
+                {answers.length === 1 ? "answer" : "answers"}
+              </button>
               <Button onClick={() => store.requireLogin(() => setAnswer(true))}>
                 Answer
               </Button>
@@ -1964,15 +2015,17 @@ function Thread() {
               </span>
             </Link>
           )}
-          <div className="section-head">
-            <h2>{answers.length} Answers</h2>
+          <div className="section-head" id="answers">
+            <h2>
+              {answers.length} {answers.length === 1 ? "Answer" : "Answers"}
+            </h2>
           </div>
           {answers.length ? (
             answers.map((a) => (
               <article
                 className={cx(
                   "card answer-card",
-                  q.acceptedAnswerId === a.id && "accepted",
+                  acc.includes(a.id) && "accepted",
                   (store.reports[a.id] || 0) >= REPORT_LIMIT && "flagged",
                 )}
               >
@@ -1985,7 +2038,7 @@ function Thread() {
                       {person(a.authorId).verified && " · Verified contributor"}
                     </span>
                   </div>
-                  {q.acceptedAnswerId === a.id && (
+                  {acc.includes(a.id) && (
                     <span className="accepted-label">
                       <Check /> Accepted answer
                     </span>
@@ -2014,15 +2067,18 @@ function Thread() {
                   </a>
                 )}
                 <div className="answer-controls">
-                  <button onClick={() => store.upvote(a.id)}>
+                  <button
+                    className={store.upvoted.includes(a.id) ? "active" : ""}
+                    onClick={() => store.upvote(a.id)}
+                  >
                     ▲ {a.upvotes}
                   </button>
                   <button onClick={() => setReply(reply === a.id ? "" : a.id)}>
                     Reply
                   </button>
-                  {me && q.acceptedAnswerId !== a.id && (
+                  {me && (
                     <button onClick={() => store.accept(q.id, a.id)}>
-                      Mark as accepted
+                      {acc.includes(a.id) ? "Unmark accepted" : "Mark as accepted"}
                     </button>
                   )}
                   <button onClick={() => store.report(a.id)}>Report</button>
@@ -2152,25 +2208,14 @@ function Compare() {
     ["Rating", (r) => `★ ${r.rating} (${r.ratingCount})`],
     ["Modes", (r) => r.modes.map((m) => m.toUpperCase()).join(" · ")],
   ];
-  const best = (row: number) => {
-    if (!selected.length) return undefined;
-    if (row === 5)
-      return selected.reduce((a, b) => (a.rating >= b.rating ? a : b));
-    if (row === 4) {
-      const rank = (r: Route) =>
-        r.exposure === "sheltered" ? 0 : r.exposure === "partial" ? 1 : 2;
-      return selected.reduce((a, b) => (rank(a) <= rank(b) ? a : b));
-    }
-    if (row === 6) return undefined;
+  // every route that ties for the best value in a row is highlighted
+  const bestIds = (row: number): string[] => {
+    if (selected.length < 2 || row === 6) return [];
+    const weather = { sheltered: 0, partial: 1, exposed: 2 };
     const value = (r: Route) =>
-      row === 0
-        ? r.fare
-        : row === 1
-          ? r.totalMinutes
-          : row === 2
-            ? r.walkingMinutes
-            : r.transfers;
-    return selected.reduce((a, b) => (value(a) <= value(b) ? a : b));
+      [r.fare, r.totalMinutes, r.walkingMinutes, r.transfers, weather[r.exposure], -r.rating][row];
+    const min = Math.min(...selected.map(value));
+    return selected.filter((r) => value(r) === min).map((r) => r.id);
   };
   return (
     <>
@@ -2215,16 +2260,19 @@ function Compare() {
             {rows.map(([label, fn], i) => (
               <tr>
                 <th>{label}</th>
-                {selected.map((r) => (
-                  <td className={best(i)?.id === r.id ? "best" : ""}>
-                    {fn(r)}
-                    {best(i)?.id === r.id && i < 3 && (
-                      <small>
-                        {["Cheapest", "Fastest", "Least walking"][i]}
-                      </small>
-                    )}
-                  </td>
-                ))}
+                {selected.map((r) => {
+                  const isBest = bestIds(i).includes(r.id);
+                  return (
+                    <td key={r.id} className={isBest ? "best" : ""}>
+                      {fn(r)}
+                      {isBest && i < 3 && (
+                        <small>
+                          {["Cheapest", "Fastest", "Least walking"][i]}
+                        </small>
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
@@ -2342,7 +2390,10 @@ function Wizard() {
     idx === 0
       ? !!d.origin && !!d.destination
       : idx === 1
-        ? Number(d.fare) >= 0 && Number(d.totalMinutes) > 0
+        ? Number(d.fare) >= 0 &&
+          Number(d.fare) <= 9999 &&
+          Number(d.totalMinutes) > 0 &&
+          Number(d.totalMinutes) <= 600
         : idx === 2
           ? !!d.modes?.length && (!d.mapUrl?.trim() || !!safeUrl(d.mapUrl))
           : true;
@@ -2358,7 +2409,7 @@ function Wizard() {
       walkingMinutes: +(d.walkingMinutes || 0),
       walkingMeters: +(d.walkingMinutes || 0) * 70,
       transfers: +(d.transfers || 0),
-      exposure: d.exposed ? "exposed" : "partial",
+      exposure: d.exposure || "partial",
       steps: [
         {
           mode: (d.modes || ["jeepney"])[0],
@@ -2412,12 +2463,14 @@ function Wizard() {
             <>
               <label>From</label>
               <input
+                maxLength={60}
                 value={d.origin || ""}
                 onChange={(e) => update("origin", e.target.value)}
                 placeholder="Origin or landmark"
               />
               <label>To</label>
               <input
+                maxLength={60}
                 value={d.destination || ""}
                 onChange={(e) => update("destination", e.target.value)}
                 placeholder="Destination or landmark"
@@ -2464,11 +2517,12 @@ function Wizard() {
               <label>
                 Weather exposure
                 <select
-                  value={d.exposed ? "Yes" : "No"}
-                  onChange={(e) => update("exposed", e.target.value === "Yes")}
+                  value={d.exposure || "partial"}
+                  onChange={(e) => update("exposure", e.target.value)}
                 >
-                  <option>No · mostly sheltered</option>
-                  <option>Yes · partly exposed</option>
+                  <option value="sheltered">Mostly sheltered</option>
+                  <option value="partial">Partly exposed</option>
+                  <option value="exposed">Mostly exposed</option>
                 </select>
               </label>
             </div>
@@ -2622,7 +2676,7 @@ function Wizard() {
               walkingMinutes: +d.walkingMinutes || 0,
               walkingMeters: 0,
               transfers: +d.transfers || 0,
-              exposure: "partial",
+              exposure: d.exposure || "partial",
               steps: [],
               tags: d.tags || [],
               tips: [],
@@ -2964,7 +3018,7 @@ function Profile() {
           <Avatar name={store.profile.name} />
           <h2>{store.profile.name}</h2>
           <Status status="unverified" />
-          <p>Level 2 Contributor</p>
+          <p>{tierInfo(store.points).name}</p>
           <div className="points-card">
             <div>
               <Star className="star" fill="currentColor" />
@@ -2972,10 +3026,14 @@ function Profile() {
             </div>
             <div className="progress">
               <i
-                style={{ width: `${Math.min((store.points % 500) / 5, 100)}%` }}
+                style={{ width: `${tierInfo(store.points).percent}%` }}
               />
             </div>
-            <small>{500 - (store.points % 500)} to next level</small>
+            <small>
+              {tierInfo(store.points).next
+                ? `${tierInfo(store.points).toNext.toLocaleString("en-US")} to ${tierInfo(store.points).next}`
+                : "Top tier reached"}
+            </small>
           </div>
           <Button kind="outline" onClick={() => setEditing(true)}>
             Edit profile
@@ -3077,6 +3135,20 @@ const tiers = [
   ["Community Champion", 1000],
   ["IDD Influencer", 2000],
 ] as const;
+function tierInfo(points: number) {
+  let i = 0;
+  tiers.forEach(([, n], k) => {
+    if (points >= n) i = k;
+  });
+  const next = tiers[i + 1];
+  const from = tiers[i][1];
+  return {
+    name: tiers[i][0] as string,
+    next: next?.[0] as string | undefined,
+    toNext: next ? next[1] - points : 0,
+    percent: next ? Math.round(((points - from) / (next[1] - from)) * 100) : 100,
+  };
+}
 const perks = [
   ["Transit card load discount", "Contributor"],
   ["Partner coffee shop freebie", "Level 2 Contributor"],
@@ -3086,8 +3158,8 @@ const perks = [
 ];
 function RewardsContents({ points }: { points: number }) {
   const [perk, setPerk] = useState("");
-  const current =
-    [...tiers].reverse().find(([, n]) => points >= n)?.[0] || "Newcomer";
+  const info = tierInfo(points),
+    current = info.name;
   return (
     <>
       <div className="points-card wide">
@@ -3099,14 +3171,12 @@ function RewardsContents({ points }: { points: number }) {
           </span>
         </div>
         <div className="progress">
-          <i style={{ width: `${Math.min(points / 20, 100)}%` }} />
+          <i style={{ width: `${info.percent}%` }} />
         </div>
         <small>
-          {Math.max(
-            0,
-            (tiers.find(([, n]) => n > points)?.[1] || points) - points,
-          )}{" "}
-          points to next tier
+          {info.next
+            ? `${info.toNext.toLocaleString("en-US")} points to ${info.next}`
+            : "Top tier reached"}
         </small>
       </div>
       <div className="rewards-grid">
@@ -3127,6 +3197,7 @@ function RewardsContents({ points }: { points: number }) {
             const unlocked =
               tiers.findIndex((x) => x[0] === current) >=
               tiers.findIndex((x) => x[0] === tier);
+            const need = tiers.find((x) => x[0] === tier)?.[1] ?? 0;
             return (
               <button
                 className="perk-row"
@@ -3135,7 +3206,9 @@ function RewardsContents({ points }: { points: number }) {
                     ? setPerk(name)
                     : useApp
                         .getState()
-                        .addToast("Reach Trusted Guide to unlock")
+                        .addToast(
+                          `Reach ${tier} (${need.toLocaleString("en-US")} pts) to unlock`,
+                        )
                 }
               >
                 <span className="perk-emoji">
@@ -3143,7 +3216,10 @@ function RewardsContents({ points }: { points: number }) {
                 </span>
                 <span>
                   <b>{name}</b>
-                  <small>{tier} tier</small>
+                  <small>
+                    {tier} tier
+                    {unlocked ? "" : ` · ${need.toLocaleString("en-US")} pts`}
+                  </small>
                 </span>
                 {unlocked ? (
                   <Check className="success-icon" />

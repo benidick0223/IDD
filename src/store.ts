@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { routes as seed, type Question, type Route } from "./data";
+import { routes as seed, acceptedIds, type Question, type Route } from "./data";
 import { seedQuestions, seedAnswers } from "./community-seed";
 type Answer = {
   id: string;
@@ -24,6 +24,7 @@ type State = {
   reports: Record<string, number>;
   reported: string[];
   promotedIds: string[];
+  helpfulIds: string[];
   points: number;
   savedRouteIds: string[];
   compareIds: string[];
@@ -49,6 +50,7 @@ type State = {
   deleteRoute: (id: string) => void;
   report: (id: string) => void;
   promote: (id: string) => void;
+  toggleHelpful: (id: string) => void;
   updateProfile: (p: { name: string; email: string }) => void;
   postQuestion: (q: Question) => void;
   postAnswer: (
@@ -159,6 +161,71 @@ Object.assign(defaultAnswers, {
     replies: [],
   },
 });
+Object.assign(defaultAnswers, {
+  a10: {
+    id: "a10",
+    questionId: "q4",
+    authorId: "u-renz",
+    text: "Yes, there are jeeps from Pasig Palengke to Ortigas. Look for the 'Ortigas' signboard at the terminal beside the market and ask the dispatcher which bay it loads at.",
+    timeAgo: "Yesterday",
+    upvotes: 6,
+    replies: [],
+  },
+  a11: {
+    id: "a11",
+    questionId: "q5",
+    authorId: "u-mika",
+    text: "Easiest is MRT-3 to Ayala, then a BGC-bound jeepney from the BGC bus and jeepney terminal. About ₱42 and 65 minutes in our route guide.",
+    timeAgo: "2 days ago",
+    upvotes: 24,
+    replies: [],
+  },
+  a12: {
+    id: "a12",
+    questionId: "q5",
+    authorId: "u-jasper",
+    text: "Cheapest is jeepney plus bus at around ₱38, but it takes closer to 100 minutes. Only worth it if you are not in a hurry.",
+    timeAgo: "2 days ago",
+    upvotes: 11,
+    replies: [],
+  },
+  a13: {
+    id: "a13",
+    questionId: "q5",
+    authorId: "u-carlo",
+    text: "If you can spend a bit more, MRT-3 plus the BGC bus via Ayala is more sheltered and beginner friendly, around ₱56.",
+    timeAgo: "2 days ago",
+    upvotes: 7,
+    replies: [],
+  },
+  a14: {
+    id: "a14",
+    questionId: "q6",
+    authorId: "u-renz",
+    text: "Meron po. Sa SM North, hanapin ang jeep na may 'UP Campus' o 'Philcoa' signboard. Mga ₱15 ang pamasahe ayon sa guide.",
+    timeAgo: "2 days ago",
+    upvotes: 9,
+    replies: [],
+  },
+  a15: {
+    id: "a15",
+    questionId: "q7",
+    authorId: "u-mika",
+    text: "Stick to well-lit terminals like One Ayala and avoid empty side streets. The train stops running late, so plan your last ride ahead.",
+    timeAgo: "3 days ago",
+    upvotes: 5,
+    replies: [],
+  },
+  a16: {
+    id: "a16",
+    questionId: "q8",
+    authorId: "u-carlo",
+    text: "Meron, pero kakaunti pa ang biyahe ng 6 AM. UV Express leaves when full, kaya agahan mo para hindi ka maiwan.",
+    timeAgo: "3 days ago",
+    upvotes: 4,
+    replies: [],
+  },
+});
 const start = () => ({
   isLoggedIn: false,
   hasEntered: false,
@@ -168,6 +235,7 @@ const start = () => ({
   reports: { r8: 2, a5: 2 },
   reported: [],
   promotedIds: [],
+  helpfulIds: [],
   points: 320,
   savedRouteIds: [],
   compareIds: ["r1", "r2"],
@@ -272,16 +340,39 @@ export const useApp = create<State>()(
           get().requireLogin(() => get().upvote(id));
           return;
         }
+        const was = get().upvoted.includes(id);
+        const step = was ? -1 : 1;
         set((s) => ({
-          upvoted: s.upvoted.includes(id)
-            ? s.upvoted.filter((x) => x !== id)
-            : [...s.upvoted, id],
+          upvoted: was ? s.upvoted.filter((x) => x !== id) : [...s.upvoted, id],
           questions: s.questions.map((q) =>
-            q.id === id
-              ? { ...q, upvotes: q.upvotes + (s.upvoted.includes(id) ? -1 : 1) }
-              : q,
+            q.id === id ? { ...q, upvotes: q.upvotes + step } : q,
+          ),
+          answers: s.answers[id]
+            ? {
+                ...s.answers,
+                [id]: { ...s.answers[id], upvotes: s.answers[id].upvotes + step },
+              }
+            : s.answers,
+        }));
+      },
+      // One "Helpful" per account: clicking again takes it back.
+      toggleHelpful: (id) => {
+        if (!get().isLoggedIn) {
+          get().requireLogin(() => get().toggleHelpful(id));
+          return;
+        }
+        const was = get().helpfulIds.includes(id);
+        set((s) => ({
+          helpfulIds: was
+            ? s.helpfulIds.filter((x) => x !== id)
+            : [...s.helpfulIds, id],
+          routes: s.routes.map((r) =>
+            r.id === id
+              ? { ...r, helpfulCount: Math.max(0, r.helpfulCount + (was ? -1 : 1)) }
+              : r,
           ),
         }));
+        get().addToast(was ? "Helpful vote removed" : "Thanks for your feedback!");
       },
       deleteRoute: (id) => {
         set((s) => ({
@@ -357,13 +448,22 @@ export const useApp = create<State>()(
         );
       },
       accept: (qid, aid) => {
+        const q = get().questions.find((x) => x.id === qid);
+        if (!q) return;
+        const current = acceptedIds(q);
+        const was = current.includes(aid);
+        const next = was ? current.filter((x) => x !== aid) : [...current, aid];
         set((s) => ({
-          questions: s.questions.map((q) =>
-            q.id === qid ? { ...q, acceptedAnswerId: aid } : q,
+          questions: s.questions.map((x) =>
+            x.id === qid
+              ? { ...x, acceptedAnswerIds: next, acceptedAnswerId: next[0] }
+              : x,
           ),
-          points: s.points + 10,
+          points: s.points + (was ? 0 : 10),
         }));
-        get().addToast("+10 points awarded to the answerer");
+        get().addToast(
+          was ? "Answer unmarked" : "+10 points awarded to the answerer",
+        );
       },
       setWizard: (wizard) => set({ wizard }),
     }),
