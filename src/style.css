@@ -3588,8 +3588,8 @@ body:has(.login-layout) .page {
   gap: 16px;
 }
 .nav-search {
-  flex: 0 1 200px;
-  min-width: 150px;
+  flex: 0 1 188px;
+  min-width: 120px;
   max-width: none;
   margin-left: auto;
 }

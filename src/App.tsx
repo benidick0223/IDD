@@ -743,7 +743,7 @@ function Shell() {
           <NavLink to="/profile">Profile</NavLink>
         </nav>
         <div className="nav-search">
-          <SearchBox placeholder="Search routes" />
+          <SearchBox placeholder="Search" />
         </div>
         <Button
           onClick={() =>
