@@ -305,7 +305,7 @@ const raw: Raw[] = [
     ups: 16,
     best: 0,
     a: [
-      ["tonyo", "Jeepney along EDSA na MOA-bound, ₱14 at mga 20 min. Sumakay ka sa harap ng Chowking o McDonald's malapit sa Metropoint.", 15, "1 week ago", [["migs", "Safe ba sa hapon?"], ["tonyo", "Basta bantay sa bag habang sumasakay sa gilid ng kalsada. Marami talagang tao pag uwian."]]],
+      ["tonyo", "Jeepney along EDSA na MOA-bound, ₱14 at mga 25 min. Sumakay ka sa harap ng Chowking o McDonald's malapit sa Metropoint.", 15, "1 week ago", [["migs", "Safe ba sa hapon?"], ["tonyo", "Basta bantay sa bag habang sumasakay sa gilid ng kalsada. Marami talagang tao pag uwian."]]],
       ["grace", "Tumatakbo daw 24/7 ayon sa guide, pero mas konti pag madaling araw.", 4, "1 week ago"],
     ],
   },
@@ -576,7 +576,7 @@ const raw: Raw[] = [
     ups: 6,
     best: 0,
     a: [
-      ["tonyo", "Tumawid ka sa Arnaiz Ave sa side ng Victory Pasay Mall, sakay ng Dominga o M. Reyes–Libertad jeep papuntang F.B. Harrison, baba malapit sa Derham Park. ₱14, mga 13 min ayon sa guide.", 7, "5 days ago"],
+      ["tonyo", "Tumawid ka sa Arnaiz Ave sa side ng Victory Pasay Mall, sakay ng Dominga o M. Reyes–Libertad jeep papuntang F.B. Harrison, baba malapit sa Derham Park. ₱14, mga 16 min ayon sa guide.", 7, "5 days ago"],
       ["ced", "Magdala ng exact fare kapag may event, mabilis mapuno ang mga jeep.", 4, "5 days ago"],
     ],
   },
@@ -652,8 +652,8 @@ const raw: Raw[] = [
   },
   {
     t: "route",
-    title: "One Ayala MRT to UMak: is it really just one stop?",
-    body: "Nakalagay one stop to Guadalupe, pero parang may Buendia.",
+    title: "One Ayala MRT to UMak: how many stops to Guadalupe?",
+    body: "Ilang stops po ba bago makarating sa Guadalupe?",
     tags: ["mrt", "jeepney", "makati"],
     by: "ced",
     ago: "1 week ago",
@@ -661,7 +661,7 @@ const raw: Raw[] = [
     route: "r36",
     best: 0,
     a: [
-      ["renz", "MRT northbound to Guadalupe, stairs down to the jeep terminal along P. Burgos, jeep with Pateros or Rizal Ext sign and drop off in front of UMak. ₱27, 24 min.", 7, "1 week ago", [["ced", "So paano yung 'one stop'?"], ["renz", "Technically may Buendia sa gitna kaya two stops, pero mga 5 min pa rin."]]],
+      ["renz", "MRT northbound to Guadalupe, stairs down to the jeep terminal along P. Burgos, jeep with Pateros or Rizal Ext sign and drop off in front of UMak. ₱27, 24 min.", 7, "1 week ago", [["ced", "Ilang stops po ba from Ayala?"], ["renz", "Dalawa po: may Buendia sa gitna, pero mga 5 min lang ang ride. Naayos na rin ang guide."]]],
     ],
   },
   {
@@ -810,7 +810,7 @@ const raw: Raw[] = [
   },
   {
     t: "route",
-    title: "Is ₱14 right for the Star City multicab?",
+    title: "Is ₱15 right for the Star City multicab?",
     body: "Orange multicab from Gil Puyat.",
     tags: ["fare", "multicab"],
     by: "ramon",
@@ -819,7 +819,7 @@ const raw: Raw[] = [
     route: "r15",
     best: 0,
     a: [
-      ["ced", "Yes po, standard fare yan sa orange multicab ayon sa guide. Pero after 9:30 PM may e-trikes na nag-o-overcharge, huwag sasakay doon.", 6, "2 weeks ago"],
+      ["ced", "Yes po, ₱15 ang standard fare sa orange multicab o bus ayon sa guide. Pero after 9:30 PM may e-trikes na nag-o-overcharge, huwag sasakay doon.", 6, "2 weeks ago"],
     ],
   },
   {
